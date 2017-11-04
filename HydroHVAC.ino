@@ -17,7 +17,7 @@
 ** 2017Oct28 - created
 */
 #include <HardwareSerial.h>
-#include <TimeAlarms.h>
+
 #include <Streaming.h>
 #include <Adafruit_Sensor.h>
 #include <DHT.h> // DHT-22 humidity sensor
@@ -27,14 +27,19 @@
 #include <DA_DiscreteOutputTmr.h>
 #include <DA_HOASwitch.h>
 #include <flowmeter.h>
+#include <DA_NonBlockingDelay.h>
+
+
 #include "UnitModbus.h"
 // comment out to  include terminal processing for debugging
 // #define PROCESS_TERMINAL
 // #define TRACE_1WIRE
-// #define TRACE_ANALOGS
+//#define TRACE_ANALOGS
+ //#define TRACE_FLOW_SENSOR
 // #define TRACE_DISCRETES
-// #define TRACE_MODBUS
-// comment out to disable modbus
+//#define TRACE_MODBUS_COILS
+//#define TRACE_MODBUS_HR
+// comment//out to disable modbus
 #define PROCESS_MODBUS
 // refresh intervals
 #define POLL_CYCLE_SECONDS 2 // sonar and 1-wire refresh rate
@@ -69,25 +74,18 @@ DA_AnalogInput B1R1_1A_PDT_008 = DA_AnalogInput(A3, 0.0, 1023.); // min max
 unsigned short B1R1_1A_SY_004 = 0; // current duty cycle to write to fan
 
 
-// FIND REAL PIN !!!!!!
-DA_DiscreteOutput B1R1_1A_XY_001 = DA_DiscreteOutput(3, LOW); // V1
+DA_DiscreteOutput B1R1_1A_XY_001 = DA_DiscreteOutput(12, LOW); // V1
 
-#ifdef PROCESS_TERMINAL
-DA_DiscreteOutput LED = DA_DiscreteOutput(13, HIGH); // for debugging
-#endif
 
 // HEARTBEAT
 unsigned int heartBeat = 0;
-struct _AlarmEntry
-{
-  time_t epoch;
-  AlarmId id = dtINVALID_ALARM_ID;
-  bool firstTime = true;
-};
 
-typedef _AlarmEntry AlarmEntry;
-AlarmEntry onRefreshAnalogs; // sonar and 1-wire read refresh
-AlarmEntry onFlowCalc; // flow calculations
+
+// poll I/O every 2 seconds
+DA_NonBlockingDelay pollTimer = DA_NonBlockingDelay( POLL_CYCLE_SECONDS*1000, &doOnPoll);
+DA_NonBlockingDelay flowRateTimer = DA_NonBlockingDelay( FLOW_CALC_PERIOD_SECONDS*1000, &doOnCalcFlowRate);
+
+
 
 #ifdef PROCESS_TERMINAL
 HardwareSerial *tracePort = &Serial2;
@@ -107,8 +105,7 @@ void onEdgeDetect(bool state, int pin)
 
 }
 
-int polling; // 1=polling analogs, 2=polling digitals, -1 nothing
-int currentTogglePin; // -1 none, >0 pin
+
 void setup()
 {
 
@@ -117,13 +114,12 @@ void setup()
 #endif
 
 #ifdef PROCESS_MODBUS
-  slave.begin(19200);
+  slave.begin(MB_SPEED);
 #endif
 
   pinMode(B1R1_1A_SY_004, OUTPUT);
   randomSeed(analogRead(3));
-  onRefreshAnalogs.id = Alarm.timerRepeat(POLL_CYCLE_SECONDS, doOnPoll);
-  onFlowCalc.id = Alarm.timerRepeat(FLOW_CALC_PERIOD_SECONDS, doOnCalcFlowRate);
+
   // humidity sensors start
   B1R1_1A_DHT_INTAKE.begin();
   B1R1_1A_DHT_RETURN.begin();
@@ -138,8 +134,10 @@ void loop()
   slave.poll(modbusRegisters, MODBUS_REG_COUNT);
   processModbusCommands();
 #endif
+  pollTimer.refresh();
+  flowRateTimer.refresh();
 
-  Alarm.delay(ALARM_REFRESH_INTERVAL);
+
   analogWrite(B1R1_1A_SY_004_PIN, B1R1_1A_SY_004);
 }
 
@@ -151,6 +149,12 @@ void doOnPoll()
   B1R1_1A_TT_012 = B1R1_1A_DHT_INTAKE.readTemperature();
   B1R1_1A_AT_006 = B1R1_1A_DHT_RETURN.readHumidity();
   B1R1_1A_TT_013 = B1R1_1A_DHT_RETURN.readTemperature();
+   #ifdef TRACE_1WIRE
+  *tracePort << "B1R1_1A_PDT_008:" << B1R1_1A_AT_005  ; 
+  *tracePort << " B1R1_1A_TT_012:" << B1R1_1A_TT_012  ;
+    *tracePort << " B1R1_1A_AT_006:" << B1R1_1A_AT_006  ; 
+  *tracePort << " B1R1_1A_TT_013:" << B1R1_1A_TT_013  << endl;
+  #endif
   heartBeat++;
 }
 
@@ -158,7 +162,10 @@ void doOnCalcFlowRate()
 {
   DISABLE_FLOW_SENSOR_INTERRUPTS;
   B1R1_1A_FT_001.end();
-  // FT_002.serialize( tracePort, true);
+
+  #ifdef TRACE_FLOW_SENSOR
+    B1R1_1A_FT_001.serialize( tracePort, true);
+  #endif
   B1R1_1A_FT_001.begin();
   ENABLE_FLOW_SENSOR_INTERRUPTS;
   // resetTotalizers();
@@ -182,35 +189,16 @@ void doReadAnalogs()
 #ifdef PROCESS_MODBUS
 void refreshModbusRegisters()
 {
+
   modbusRegisters[HR_DIFFDP1] = B1R1_1A_PDT_008.getRawSample();
-  modbusRegisters[HR_HUMIDITY1] = B1R1_1A_AT_005;
-  modbusRegisters[HR_TEMPERATURE1] = B1R1_1A_TT_012;
-  modbusRegisters[HR_HUMIDITY2] = B1R1_1A_AT_006;
-  modbusRegisters[HR_TEMPERATURE2] = B1R1_1A_TT_013;
-  modbusRegisters[HR_FLOW1] = B1R1_1A_FT_001.getCurrentFlowRate();
+  modbusRegisters[HR_HUMIDITY1] = B1R1_1A_AT_005 * 100;
+  modbusRegisters[HR_TEMPERATURE1] = B1R1_1A_TT_012 * 100;
+  modbusRegisters[HR_HUMIDITY2] = B1R1_1A_AT_006 * 100;
+  modbusRegisters[HR_TEMPERATURE2] = B1R1_1A_TT_013 * 100;
+  modbusRegisters[HR_FLOW1] = B1R1_1A_FT_001.getCurrentPulses();
   modbusRegisters[B1R1_1A_ST_004] = -1; // not implemented
-  /*
-  modbusRegisters[HR_TEMPERATURE1] = 1000;
-  modbusRegisters[HR_TEMPERATURE2] = 1001;
-  modbusRegisters[HR_TEMPERATURE3] = 1002;
-  modbusRegisters[HR_TEMPERATURE4] = 1003;
-  modbusRegisters[HR_PRESSURE1] = 1004;
-  modbusRegisters[HR_PRESSURE2] = 1005;
-  modbusRegisters[HR_PRESSURE3] = 1006;
-  modbusRegisters[HR_PRESSURE4] = 1007;
-  modbusRegisters[HR_HUMIDITY1] = 1109;
-  modbusRegisters[HR_SPARE1] = 1008;
-  modbusRegisters[HR_HUMIDITY2] = 1009;
-  modbusRegisters[HR_SPARE2] = 1010;
-  modbusRegisters[HR_DIFFDP1] = 1011;
-  modbusRegisters[HR_DIFFDP2] = 1111;
-  modbusRegisters[HR_SPARE1] = 1012;
-  modbusRegisters[HR_SPARE2] = 1013;
-  modbusRegisters[HR_SPARE3] = 1014;
-  modbusRegisters[HR_SPARE4] = 1015;
-  modbusRegisters[HR_SPARE5] = 1016;
-  modbusRegisters[HR_HEARTBEAT] = 1017;
-  */
+    modbusRegisters[HR_HEARTBEAT] = heartBeat;
+
 }
 
 bool getModbusCoilValue(unsigned short startAddress, unsigned short bitPos)
@@ -229,44 +217,47 @@ void checkAndActivateDO(unsigned int bitOffset, DA_DiscreteOutput * aDO)
   // look for a change from 0 to 1
   if (getModbusCoilValue(COIL_STATUS_READ_WRITE_OFFSET, bitOffset))
   {
-    aDO -> activate();
+    aDO->activate();
 
-  #ifdef TRACE_MODBUS
+  #ifdef TRACE_MODBUS_COILS
     *tracePort << "Activate DO:";
-    aDO -> serialize(tracePort, true);
-    LED.activate();
+    aDO->serialize(tracePort, true);
+   // LED.activate();
   #endif
 
-    writeModbusCoil(COIL_STATUS_READ_WRITE_OFFSET, bitOffset, false); // clear the bit
+   // writeModbusCoil(COIL_STATUS_READ_WRITE_OFFSET, bitOffset, false); // clear the bit
   }
 }
 
 void checkAndResetDO(unsigned int bitOffset, DA_DiscreteOutput * aDO)
 {
   // look for a change from 0 to 1
-  if (getModbusCoilValue(COIL_STATUS_READ_WRITE_OFFSET, bitOffset))
+  if (!getModbusCoilValue(COIL_STATUS_READ_WRITE_OFFSET, bitOffset))
   {
-    aDO -> reset();
+    aDO->reset();
 
-  #ifdef TRACE_MODBUS
+  #ifdef TRACE_MODBUS_COILS
     *tracePort << "Reset DO:";
-    aDO -> serialize(tracePort, true);
-    LED.reset();
+    aDO->serialize(tracePort, true);
+    //LED.reset();
   #endif
 
-    writeModbusCoil(COIL_STATUS_READ_WRITE_OFFSET, bitOffset, false); // clear the bit
+   // writeModbusCoil(COIL_STATUS_READ_WRITE_OFFSET, bitOffset, false); // clear the bit
   }
 }
-
 void processValveCommands()
+
 {
-  checkAndActivateDO(VALVE1_OPEN, &B1R1_1A_XY_001);
-  checkAndResetDO(VALVE1_CLOSE, &B1R1_1A_XY_001);
+  checkAndActivateDO(VALVE1_OPEN_CLOSE, &B1R1_1A_XY_001);
+  checkAndResetDO(VALVE1_OPEN_CLOSE, &B1R1_1A_XY_001);
 }
 
 void processSetFanSpeedCommand()
 {
   B1R1_1A_SY_004 = modbusRegisters[B1R1_1A_SY_004S];
+    #ifdef TRACE_MODBUS_HR
+  *tracePort << "Set Fan Speed :" << B1R1_1A_SY_004 << endl;
+  #endif
 }
 
 void processModbusCommands()

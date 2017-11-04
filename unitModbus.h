@@ -17,6 +17,14 @@
 
 
 // specific read holding registers to unit
+#define FUTURE CUSTOM_HR_START_READ
+
+// specific write holding registers to unit
+#define FUTURES CUSTOM_HR_START_WRITE
+
+
+
+// specific read holding registers to unit
 #define B1R1_1A_ST_004 CUSTOM_HR_START_READ
 
 // specific write holding registers to unit
@@ -28,17 +36,14 @@
 //  HOLDING_REGISTER_WRITE_OFFSET + LAST #DEFINE IN THE LIST ON TOP.
 //  IF YOU ADD MORE ENSURE THE CHANGE IS MADE HERE 
 
-
-
-#define MODBUS_REG_COUNT HOLDING_REGISTER_WRITE_OFFSET + B1R1_1A_ST_004 + 1
+#define MODBUS_REG_COUNT HOLDING_REGISTER_WRITE_OFFSET + FUTURE + 1
 uint16_t modbusRegisters[MODBUS_REG_COUNT];
 
-#define MB_SLAVE_ID				23
+#define MB_SPEED 			    19200
+#define MB_SLAVE_ID				22
 #define MB_SERIAL_PORT			0
 #define MB_MAX485_PIN			6  // set to zero for RS-232
 
 
 
 Modbus slave(MB_SLAVE_ID, MB_SERIAL_PORT,MB_MAX485_PIN); 
-
-
