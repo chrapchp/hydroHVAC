@@ -43,7 +43,7 @@
 #define PROCESS_MODBUS
 // refresh intervals
 #define POLL_CYCLE_SECONDS 2 // sonar and 1-wire refresh rate
-#define ALARM_REFRESH_INTERVAL 100 // ms
+
 // 
 // 
 #define FLOW_SENSOR_INTERUPT 2 // pin
