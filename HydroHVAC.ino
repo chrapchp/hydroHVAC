@@ -32,10 +32,10 @@
 
 #include "UnitModbus.h"
 // comment out to  include terminal processing for debugging
-// #define PROCESS_TERMINAL
-// #define TRACE_1WIRE
+ //#define PROCESS_TERMINAL
+ //#define TRACE_1WIRE
 //#define TRACE_ANALOGS
- //#define TRACE_FLOW_SENSOR
+ //define TRACE_FLOW_SENSOR
 // #define TRACE_DISCRETES
 //#define TRACE_MODBUS_COILS
 //#define TRACE_MODBUS_HR
@@ -46,7 +46,7 @@
 
 // 
 // 
-#define FLOW_SENSOR_INTERUPT 2 // pin
+#define FLOW_SENSOR_INTERUPT 3 // pin
 #define FLOW_CALC_PERIOD_SECONDS 1 // flow rate calc period
 #define ENABLE_FLOW_SENSOR_INTERRUPTS attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_INTERUPT), onB1R1_1A_FT_001_PulseIn, RISING)
 #define DISABLE_FLOW_SENSOR_INTERRUPTS detachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_INTERUPT))
@@ -74,7 +74,7 @@ DA_AnalogInput B1R1_1A_PDT_008 = DA_AnalogInput(A3, 0.0, 1023.); // min max
 unsigned short B1R1_1A_SY_004 = 0; // current duty cycle to write to fan
 
 
-DA_DiscreteOutput B1R1_1A_XY_001 = DA_DiscreteOutput(12, LOW); // V1
+DA_DiscreteOutput B1R1_1A_XY_001 = DA_DiscreteOutput(12, HIGH); // V1
 
 
 // HEARTBEAT
@@ -88,7 +88,7 @@ DA_NonBlockingDelay flowRateTimer = DA_NonBlockingDelay( FLOW_CALC_PERIOD_SECOND
 
 
 #ifdef PROCESS_TERMINAL
-HardwareSerial *tracePort = &Serial2;
+HardwareSerial *tracePort = &Serial;
 #endif
 
 void onB1R1_1A_FT_001_PulseIn()
@@ -120,10 +120,12 @@ void setup()
   pinMode(B1R1_1A_SY_004, OUTPUT);
   randomSeed(analogRead(3));
 
+
   // humidity sensors start
   B1R1_1A_DHT_INTAKE.begin();
   B1R1_1A_DHT_RETURN.begin();
   ENABLE_FLOW_SENSOR_INTERRUPTS;
+
 }
 
 void loop()
@@ -165,7 +167,10 @@ void doOnCalcFlowRate()
 
   #ifdef TRACE_FLOW_SENSOR
     B1R1_1A_FT_001.serialize( tracePort, true);
+    *tracePort << "modbus address for flow:" << HR_FLOW1 << endl;
+
   #endif
+
   B1R1_1A_FT_001.begin();
   ENABLE_FLOW_SENSOR_INTERRUPTS;
   // resetTotalizers();
@@ -195,7 +200,9 @@ void refreshModbusRegisters()
   modbusRegisters[HR_TEMPERATURE1] = B1R1_1A_TT_012 * 100;
   modbusRegisters[HR_HUMIDITY2] = B1R1_1A_AT_006 * 100;
   modbusRegisters[HR_TEMPERATURE2] = B1R1_1A_TT_013 * 100;
-  modbusRegisters[HR_FLOW1] = B1R1_1A_FT_001.getCurrentPulses();
+  modbusRegisters[HR_FLOW1] = B1R1_1A_FT_001.getCurrentPulses(); 
+
+  //modbusRegisters[HR_FLOW1] = B1R1_1A_FT_001.getCurrentPulses();
   modbusRegisters[B1R1_1A_ST_004] = -1; // not implemented
     modbusRegisters[HR_HEARTBEAT] = heartBeat;
 
