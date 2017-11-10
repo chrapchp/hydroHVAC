@@ -25,7 +25,7 @@
 
 
 // specific read holding registers to unit
-#define B1R1_1A_ST_004 CUSTOM_HR_START_READ
+//#define B1R1_1A_ST_004_MB CUSTOM_HR_START_READ
 
 // specific write holding registers to unit
 #define B1R1_1A_SY_004_MB CUSTOM_HR_START_WRITE -1

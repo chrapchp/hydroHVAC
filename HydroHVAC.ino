@@ -50,7 +50,14 @@
 #define FLOW_CALC_PERIOD_SECONDS 1 // flow rate calc period
 #define ENABLE_FLOW_SENSOR_INTERRUPTS attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_INTERUPT), onB1R1_1A_FT_001_PulseIn, RISING)
 #define DISABLE_FLOW_SENSOR_INTERRUPTS detachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_INTERUPT))
-#define FAN_SPEED_INTERUPT 2 // pin does not work return 0 for now to host
+
+#define FAN_SPEED_INTERUPT 2 
+#define ENABLE_SPEED_SENSOR_INTERRUPTS attachInterrupt(digitalPinToInterrupt(FAN_SPEED_INTERUPT), onB1R1_1A_ST_004_PulseIn, RISING)
+#define DISABLE_SPEED_SENSOR_INTERRUPTS detachInterrupt(digitalPinToInterrupt(FAN_SPEED_INTERUPT))
+
+volatile unsigned int B1R1_1A_ST_004_Raw = 0;
+volatile unsigned int B1R1_1A_ST_004 = 0; // sent to host
+
 #define HUMIDITY_RETURN_FEED 7 // pin
 #define HUMIDITY_INTAKE_FEED 9 // pin
 
@@ -96,15 +103,11 @@ void onB1R1_1A_FT_001_PulseIn()
   B1R1_1A_FT_001.handleFlowDetection();
 }
 
-void onEdgeDetect(bool state, int pin)
+
+void onB1R1_1A_ST_004_PulseIn()
 {
-
-#ifdef PROCESS_TERMINAL
-  *tracePort << "Edge Detection:" << state << " on pin " << pin << endl;
-#endif
-
+  B1R1_1A_ST_004_Raw++;
 }
-
 
 void setup()
 {
@@ -117,7 +120,7 @@ void setup()
   slave.begin(MB_SPEED);
 #endif
 
-  pinMode(B1R1_1A_SY_004, OUTPUT);
+  pinMode(B1R1_1A_SY_004_PIN, OUTPUT);
   randomSeed(analogRead(3));
 
 
@@ -125,6 +128,7 @@ void setup()
   B1R1_1A_DHT_INTAKE.begin();
   B1R1_1A_DHT_RETURN.begin();
   ENABLE_FLOW_SENSOR_INTERRUPTS;
+  ENABLE_SPEED_SENSOR_INTERRUPTS;
 
 }
 
@@ -173,6 +177,12 @@ void doOnCalcFlowRate()
 
   B1R1_1A_FT_001.begin();
   ENABLE_FLOW_SENSOR_INTERRUPTS;
+
+  DISABLE_SPEED_SENSOR_INTERRUPTS;
+  B1R1_1A_ST_004 = B1R1_1A_ST_004_Raw;
+  B1R1_1A_ST_004_Raw = 0;
+  ENABLE_SPEED_SENSOR_INTERRUPTS;
+
   // resetTotalizers();
 }
 
@@ -203,7 +213,7 @@ void refreshModbusRegisters()
   modbusRegisters[B1R1_1A_FT_001_MB] = B1R1_1A_FT_001.getCurrentPulses(); 
 
   //modbusRegisters[HR_FLOW1] = B1R1_1A_FT_001.getCurrentPulses();
-  modbusRegisters[B1R1_1A_ST_004_MB] = -1; // not implemented
+  modbusRegisters[B1R1_1A_ST_004_MB] = B1R1_1A_ST_004; 
     modbusRegisters[HEART_BEAT] = heartBeat;
 
 }
