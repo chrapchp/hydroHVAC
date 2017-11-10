@@ -195,16 +195,16 @@ void doReadAnalogs()
 void refreshModbusRegisters()
 {
 
-  modbusRegisters[HR_DIFFDP1] = B1R1_1A_PDT_008.getRawSample();
-  modbusRegisters[HR_HUMIDITY1] = B1R1_1A_AT_005 * 100;
-  modbusRegisters[HR_TEMPERATURE1] = B1R1_1A_TT_012 * 100;
-  modbusRegisters[HR_HUMIDITY2] = B1R1_1A_AT_006 * 100;
-  modbusRegisters[HR_TEMPERATURE2] = B1R1_1A_TT_013 * 100;
-  modbusRegisters[HR_FLOW1] = B1R1_1A_FT_001.getCurrentPulses(); 
+  modbusRegisters[B1R1_1A_PDT_008_MB] = B1R1_1A_PDT_008.getRawSample();
+  modbusRegisters[B1R1_1A_AT_005_MB] = B1R1_1A_AT_005 * 100;
+  modbusRegisters[B1R1_1A_TT_012_MB] = B1R1_1A_TT_012 * 100;
+  modbusRegisters[B1R1_1A_AT_006_MB] = B1R1_1A_AT_006 * 100;
+  modbusRegisters[B1R1_1A_TT_013_MB] = B1R1_1A_TT_013 * 100;
+  modbusRegisters[B1R1_1A_FT_001_MB] = B1R1_1A_FT_001.getCurrentPulses(); 
 
   //modbusRegisters[HR_FLOW1] = B1R1_1A_FT_001.getCurrentPulses();
-  modbusRegisters[B1R1_1A_ST_004] = -1; // not implemented
-    modbusRegisters[HR_HEARTBEAT] = heartBeat;
+  modbusRegisters[B1R1_1A_ST_004_MB] = -1; // not implemented
+    modbusRegisters[HEART_BEAT] = heartBeat;
 
 }
 
@@ -261,7 +261,7 @@ void processValveCommands()
 
 void processSetFanSpeedCommand()
 {
-  B1R1_1A_SY_004 = modbusRegisters[B1R1_1A_SY_004S];
+  B1R1_1A_SY_004 = modbusRegisters[B1R1_1A_SY_004_MB];
     #ifdef TRACE_MODBUS_HR
   *tracePort << "Set Fan Speed :" << B1R1_1A_SY_004 << endl;
   #endif

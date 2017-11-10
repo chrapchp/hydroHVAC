@@ -28,7 +28,20 @@
 #define B1R1_1A_ST_004 CUSTOM_HR_START_READ
 
 // specific write holding registers to unit
-#define B1R1_1A_SY_004S CUSTOM_HR_START_WRITE
+#define B1R1_1A_SY_004_MB CUSTOM_HR_START_WRITE -1
+
+
+
+#define B1R1_1A_TT_012_MB   10
+#define B1R1_1A_TT_013_MB   11
+#define B1R1_1A_AT_005_MB   12
+#define B1R1_1A_AT_006_MB   13
+#define B1R1_1A_PDT_008_MB   14
+#define B1R1_1A_FT_001_MB   15
+#define B1R1_1A_ST_004_MB   16
+#define HEART_BEAT  		17
+
+
 
 
 // 
