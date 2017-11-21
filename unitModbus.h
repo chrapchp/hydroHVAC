@@ -53,7 +53,7 @@
 uint16_t modbusRegisters[MODBUS_REG_COUNT];
 
 #define MB_SPEED 			    19200
-#define MB_SLAVE_ID				22
+#define MB_SLAVE_ID				23
 #define MB_SERIAL_PORT			0
 #define MB_MAX485_PIN			6  // set to zero for RS-232
 
